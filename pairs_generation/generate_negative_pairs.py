@@ -4,11 +4,17 @@ import pickle
 import sys
 import glob
 from pathlib import Path
+import random
 
 
 #  PARAMETERS
 SEGMENT_LENGTH = 16
-ACCEPTABLE_DELAY = SEGMENT_LENGTH // 2
+MAX_PAIRS_BY_VIDEO = 2
+NB_TRIES_BY_VIDEO = 100
+
+
+# Fix seed for reproducibility
+random.seed(0)
 
 
 GT_dir = "/home/acances/Data/TVHID/tv_human_interactions_annotations"
@@ -74,38 +80,46 @@ def get_GT_to_det(video_id):
     return GT_to_det
 
 
-def generate_positive_pairs(video_id):
+def generate_negative_pairs(video_id):
     interactions = get_interactions(video_id)
     tracks = get_tracks(video_id)
     GT_to_det = get_GT_to_det(video_id)
+
+    interacting_pairs_of_ids = [e[:2] for e in interactions]
 
     # print("Interactions:")
     # for elt in interactions: print(elt)
     # print()
 
     pairs = []
-    for id_1, id_2, b, e in interactions:
-        if (id_1 not in GT_to_det) or (id_2 not in GT_to_det):
-            continue
-        track_1 = tracks[GT_to_det[id_1][0]]
-        track_2 = tracks[GT_to_det[id_2][0]]
+    if len(GT_to_det) >= 2:
+        pairs_of_ids_used = []
+        for i in range(NB_TRIES_BY_VIDEO):
+            id_1, id_2 = sorted(random.sample(GT_to_det.keys(), 2))
+            if [id_1, id_2] in interacting_pairs_of_ids:
+                continue
+            if [id_1, id_2] in pairs_of_ids_used:
+                continue
 
-        inter_b = int(max(track_1[0, 0], track_2[0, 0]))
-        inter_e = int(min(track_1[-1, 0], track_2[-1, 0]))
+            track_1 = tracks[GT_to_det[id_1][0]]
+            track_2 = tracks[GT_to_det[id_2][0]]
 
-        begin = max(b - ACCEPTABLE_DELAY, inter_b)
-        end = min(e + ACCEPTABLE_DELAY, inter_e)
+            inter_b = int(max(track_1[0, 0], track_2[0, 0]))
+            inter_e = int(min(track_1[-1, 0], track_2[-1, 0]))
+            if inter_e - inter_b + 1 < SEGMENT_LENGTH:
+                continue
 
-        segment_begin_indices = list(range(begin, end - SEGMENT_LENGTH, SEGMENT_LENGTH))
-        for begin_frame in segment_begin_indices:
+            begin_frame = random.randint(inter_b, inter_e - SEGMENT_LENGTH + 1)
+
             pair = []
             pair += [video_id, GT_to_det[id_1][0], begin_frame, begin_frame + SEGMENT_LENGTH]
             pair += [video_id, GT_to_det[id_2][0], begin_frame, begin_frame + SEGMENT_LENGTH]
             pairs.append(pair)
 
-        # print("tracks {} - {} : \t".format(id_1, id_2) + "\t".join(map(str, segment_begin_indices)))
-    
-    output_file = "{}/positive/pairs_{}.csv".format(pairs_dir, video_id)
+            if len(pairs) == MAX_PAIRS_BY_VIDEO:
+                break
+
+    output_file = "{}/negative/pairs_{}.csv".format(pairs_dir, video_id)
     Path("/".join(output_file.split("/")[:-1])).mkdir(parents=True, exist_ok=True)
 
     with open(output_file, "w") as f:
@@ -116,7 +130,7 @@ def generate_positive_pairs(video_id):
 if __name__ == "__main__":
     video_ids = [e.split("/")[-1] for e in sorted(glob.glob("{}/*".format(tracks_dir)))]
     for video_id in video_ids:
-        generate_positive_pairs(video_id)
+        generate_negative_pairs(video_id)
 
     # video_id = sys.argv[1]
-    # generate_positive_pairs(video_id)
+    # generate_negative_pairs(video_id)
