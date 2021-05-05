@@ -8,7 +8,7 @@ from pathlib import Path
 
 #  PARAMETERS
 SEGMENT_LENGTH = 16
-ACCEPTABLE_DELAY = SEGMENT_LENGTH // 2
+ACCEPTABLE_DELAY = 3 * SEGMENT_LENGTH // 4
 
 
 GT_dir = "/home/acances/Data/TVHID/tv_human_interactions_annotations"
