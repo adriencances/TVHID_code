@@ -18,7 +18,7 @@ pairs_dir = "/home/acances/Data/TVHID/pairs{}".format(SEGMENT_LENGTH)
 
 
 def get_interactions(video_id):
-    # Each element in the returned vector "interactions" si of the form
+    # Each element in the returned vector "interactions" is of the form
     # [id_1, id_2, b, e]
     # where id_1 and id_2 are the track ids of the humans interacting (relative to the GT annotation files)
     # and b and e are the starting frame and ending frame (included) of the interaction,
